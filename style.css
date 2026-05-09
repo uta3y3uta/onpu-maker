@@ -211,6 +211,14 @@ main {
 .note.active { transform: translateY(-10px) scale(1.15); }
 .note.active .symbol { color: var(--primary-dark); }
 
+/* 二分音符は2拍ぶんの長さなので横幅を広げる */
+.note.note-half { width: 110px; }
+.note.note-half .symbol { font-size: 2.8rem; }
+
+/* 休符はカナ部分をオレンジ寄りに */
+.note.note-rest .kana { background: #ffccbc; }
+.note.note-rest .symbol { color: #6d4c41; }
+
 .notes-actions {
   margin-top: 0.75rem;
   display: flex;

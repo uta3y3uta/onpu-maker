@@ -11,6 +11,7 @@ const state = {
   bpm: 100,
   patternIndex: 0,
   moras: [],            // 例: ["バ","ナ","ナ"]
+  notes: [],            // 例: [{kana:"バ", symbol:"♩", beats:1, type:"quarter"}]
   notesPlaying: false,
 };
 
@@ -125,18 +126,22 @@ function playHat(t) {
   src.start(t);
 }
 
-// メロディ音 (モーラ用) — 木琴っぽいベル音
-function playMelodyNote(t, freq) {
+// 音符の再生音 — 単一音程のウッドブロック/木琴風 (リズムを刻むだけ)
+function playClick(t, beats, beatLength) {
   const ctx = state.audioCtx;
   const o = ctx.createOscillator();
   const g = ctx.createGain();
-  o.type = "triangle";
-  o.frequency.setValueAtTime(freq, t);
+  o.type = "sine";
+  o.frequency.setValueAtTime(880, t);
+  o.frequency.exponentialRampToValueAtTime(660, t + 0.04);
+  // 二分音符など長い音符は減衰も長く
+  const decay = Math.min(1.2, Math.max(0.18, beatLength * beats * 0.85));
   g.gain.setValueAtTime(0, t);
-  g.gain.linearRampToValueAtTime(0.4, t + 0.005);
-  g.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+  g.gain.linearRampToValueAtTime(0.5, t + 0.005);
+  g.gain.exponentialRampToValueAtTime(0.001, t + decay);
   o.connect(g).connect(ctx.destination);
-  o.start(t); o.stop(t + 0.5);
+  o.start(t);
+  o.stop(t + decay + 0.1);
 }
 
 // ---------- 4. リズムループ ----------
@@ -202,108 +207,69 @@ function splitMora(text) {
   return moras;
 }
 
-// モーラを音程にマッピング (子音群ごとにペンタトニック)
-const PITCH_TABLE = {
-  // a, i, u, e, o の母音グループ別に音程
-  a: 523.25, i: 587.33, u: 659.25, e: 698.46, o: 783.99
-};
-function pitchForMora(m) {
-  // ひらがな/カタカナ → 母音判定 (ざっくり)
-  const VOWEL_MAP = {
-    "あいうえお": "aiueo",
-    "かきくけこ": "aiueo",
-    "がぎぐげご": "aiueo",
-    "さしすせそ": "aiueo",
-    "ざじずぜぞ": "aiueo",
-    "たちつてと": "aiueo",
-    "だぢづでど": "aiueo",
-    "なにぬねの": "aiueo",
-    "はひふへほ": "aiueo",
-    "ばびぶべぼ": "aiueo",
-    "ぱぴぷぺぽ": "aiueo",
-    "まみむめも": "aiueo",
-    "やいゆえよ": "aiueo",
-    "らりるれろ": "aiueo",
-    "わゐうゑを": "aiueo",
-    "アイウエオ": "aiueo",
-    "カキクケコ": "aiueo",
-    "ガギグゲゴ": "aiueo",
-    "サシスセソ": "aiueo",
-    "ザジズゼゾ": "aiueo",
-    "タチツテト": "aiueo",
-    "ダヂヅデド": "aiueo",
-    "ナニヌネノ": "aiueo",
-    "ハヒフヘホ": "aiueo",
-    "バビブベボ": "aiueo",
-    "パピプペポ": "aiueo",
-    "マミムメモ": "aiueo",
-    "ヤイユエヨ": "aiueo",
-    "ラリルレロ": "aiueo",
-    "ワヰウヱヲ": "aiueo",
-  };
-  const last = m[m.length - 1];
-  // ッ や ー は前の音のためここでは特殊
-  if (last === "ッ" || last === "っ") return null; // 無音(ポップ)
-  if (last === "ー") return "sustain";
-  if (last === "ン" || last === "ん") return PITCH_TABLE.u;
-  for (const row in VOWEL_MAP) {
-    const idx = row.indexOf(last);
-    if (idx >= 0) return PITCH_TABLE[VOWEL_MAP[row][idx]];
+// モーラ列 → 音符列に変換 (リズムだけを表す)
+// ・各モーラ      → ♩ 四分音符 (1拍)
+// ・ ー が直後に続く → 直前と結合して 𝅗𝅥 二分音符 (2拍)
+// ・ ッ            → 𝄽 四分休符 (1拍)
+function moraToNotes(moras) {
+  const notes = [];
+  for (let i = 0; i < moras.length; i++) {
+    const m = moras[i];
+    if (m === "ー") continue; // 直前のノートに吸収済み
+    if (m === "ッ" || m === "っ") {
+      notes.push({ kana: m, symbol: "𝄽", beats: 1, type: "rest" });
+      continue;
+    }
+    if (moras[i + 1] === "ー") {
+      notes.push({ kana: m + "ー", symbol: "𝅗𝅥", beats: 2, type: "half" });
+    } else {
+      notes.push({ kana: m, symbol: "♩", beats: 1, type: "quarter" });
+    }
   }
-  // 不明な文字は中央のド
-  return PITCH_TABLE.a;
+  return notes;
 }
 
 // ---------- 6. 音符表示 ----------
 function renderNotes() {
   const staff = document.getElementById("staff");
   staff.innerHTML = "";
-  if (state.moras.length === 0) {
+  if (state.notes.length === 0) {
     staff.innerHTML = '<div class="empty">ことばを はなすと、ここに おんぷが でます</div>';
     return;
   }
-  const NOTE_SYMBOLS = ["♩", "♪", "♫", "♬"];
-  state.moras.forEach((m, i) => {
+  state.notes.forEach((n, i) => {
     const d = document.createElement("div");
-    d.className = "note";
+    d.className = `note note-${n.type}`;
     d.dataset.idx = i;
-    let sym;
-    if (m === "ッ" || m === "っ") sym = "𝄽"; // 休符
-    else if (m === "ー") sym = "♩〜";
-    else sym = NOTE_SYMBOLS[i % NOTE_SYMBOLS.length];
-    d.innerHTML = `<div class="symbol">${sym}</div><div class="kana">${m}</div>`;
+    d.innerHTML = `<div class="symbol">${n.symbol}</div><div class="kana">${n.kana}</div>`;
     staff.appendChild(d);
   });
 }
 
-// 音符を順に再生
+// 音符を順に再生 (リズムのみ。すべて同じ音色・同じ音程)
 function playNotesSequence() {
-  if (state.moras.length === 0) return;
+  if (state.notes.length === 0) return;
   ensureAudio();
   const ctx = state.audioCtx;
-  const beat = 60 / state.bpm; // 1拍 = 1モーラ
+  const beat = 60 / state.bpm; // 1拍の長さ (秒)
   const startTime = ctx.currentTime + 0.1;
-  state.moras.forEach((m, i) => {
-    const t = startTime + i * beat;
-    const pitch = pitchForMora(m);
-    if (pitch && pitch !== "sustain") {
-      playMelodyNote(t, pitch);
-    } else if (pitch === "sustain") {
-      // 直前の音を伸ばす表現として、同じ音を弱く再発音
-      const prev = pitchForMora(state.moras[i - 1] || "");
-      if (typeof prev === "number") playMelodyNote(t, prev);
+  let cursor = 0; // 累積拍数
+  state.notes.forEach((n, i) => {
+    const t = startTime + cursor * beat;
+    if (n.type !== "rest") {
+      playClick(t, n.beats, beat);
     }
     // 視覚同期
     const delayMs = (t - ctx.currentTime) * 1000;
     setTimeout(() => {
-      document.querySelectorAll(".note").forEach(n => n.classList.remove("active"));
+      document.querySelectorAll(".note").forEach(el => el.classList.remove("active"));
       const el = document.querySelector(`.note[data-idx="${i}"]`);
       if (el) el.classList.add("active");
-      if (i === state.moras.length - 1) {
-        setTimeout(() => document.querySelectorAll(".note").forEach(n => n.classList.remove("active")), beat * 1000);
-      }
     }, Math.max(0, delayMs));
+    cursor += n.beats;
   });
+  const totalMs = (cursor * beat + 0.3) * 1000;
+  setTimeout(() => document.querySelectorAll(".note").forEach(el => el.classList.remove("active")), totalMs);
 }
 
 // ---------- 7. 音声認識 ----------
@@ -336,6 +302,7 @@ function setupRecognition() {
 function handleRecognized(text) {
   document.getElementById("recognized-text").textContent = text;
   state.moras = splitMora(text);
+  state.notes = moraToNotes(state.moras);
   renderNotes();
 }
 
@@ -396,6 +363,7 @@ function init() {
   document.getElementById("play-notes-btn").addEventListener("click", playNotesSequence);
   document.getElementById("clear-btn").addEventListener("click", () => {
     state.moras = [];
+    state.notes = [];
     document.getElementById("recognized-text").textContent = "―";
     renderNotes();
   });
