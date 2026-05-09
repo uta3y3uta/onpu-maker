@@ -183,19 +183,45 @@ function scheduleNextStep() {
   state.rhythmTimerId = setTimeout(scheduleNextStep, stepDur * 1000);
 }
 
-// ---------- 5. モーラ分割 ----------
+// ---------- 5. モーラ分割 + 漢字→かな変換 ----------
+// よく使う食べもの/こども語彙の漢字を かな に変換
+const KANJI_TO_KANA = {
+  "林檎": "りんご", "苺": "いちご", "葡萄": "ぶどう", "蜜柑": "みかん",
+  "西瓜": "すいか", "桃": "もも", "梨": "なし", "柿": "かき", "栗": "くり",
+  "茄子": "なす", "南瓜": "かぼちゃ", "胡瓜": "きゅうり",
+  "玉葱": "たまねぎ", "葱": "ねぎ", "人参": "にんじん", "牛蒡": "ごぼう",
+  "馬鈴薯": "じゃがいも", "薩摩芋": "さつまいも",
+  "御握り": "おにぎり", "御寿司": "おすし", "寿司": "すし", "握り": "にぎり",
+  "御飯": "ごはん", "御菓子": "おかし", "御茶": "おちゃ",
+  "牛乳": "ぎゅうにゅう", "卵": "たまご", "魚": "さかな", "肉": "にく",
+  "鶏肉": "とりにく", "豚肉": "ぶたにく", "牛肉": "ぎゅうにく",
+  "蜂蜜": "はちみつ", "砂糖": "さとう", "塩": "しお",
+  "醤油": "しょうゆ", "味噌": "みそ", "豆腐": "とうふ", "納豆": "なっとう",
+  "団子": "だんご", "餃子": "ぎょうざ", "麺": "めん", "素麺": "そうめん",
+};
+function normalizeRecognized(text) {
+  for (const [k, v] of Object.entries(KANJI_TO_KANA)) {
+    if (text.includes(k)) text = text.split(k).join(v);
+  }
+  return text;
+}
+
+// 仮名・長音符・漢字 だけを 1モーラとして数える文字判定
+function isCountable(c) {
+  return /[぀-ゟ゠-ヿ一-龯ｦ-ﾟー]/.test(c);
+}
+
 // 日本語のモーラ単位に分割する
 // - 小書き仮名 (ゃゅょぁぃぅぇぉゎ等) は前の文字に結合
 // - ッ ー ン は独立した1モーラ
+// - 記号・空白・英数字は無視
 function splitMora(text) {
   const SMALL = "ゃゅょぁぃぅぇぉゎャュョァィゥェォヮ";
-  const KANA_RANGE = /[぀-ヿー]/; // ひらがな・カタカナ・長音符
   const moras = [];
-  // 仮名以外（漢字・英字など）はざっくり1文字=1モーラとする
   const chars = [...text];
   for (let i = 0; i < chars.length; i++) {
     const c = chars[i];
-    if (!c.trim()) continue;
+    if (!isCountable(c)) continue;
     const next = chars[i + 1];
     if (next && SMALL.includes(next)) {
       moras.push(c + next);
@@ -371,29 +397,95 @@ function setupRecognition() {
   };
 }
 
-function handleRecognized(text) {
-  document.getElementById("recognized-text").textContent = text;
-  state.moras = splitMora(text);
+function handleRecognized(text, opts = {}) {
+  const normalized = normalizeRecognized(text);
+  document.getElementById("recognized-text").textContent = normalized;
+  state.moras = splitMora(normalized);
   state.notes = moraToNotes(state.moras);
   renderNotes();
+  if (!opts.skipHistory) addToHistory(normalized);
 }
 
-// ---------- 8. プリセット ----------
-const PRESETS = [
-  "バナナ", "りんご", "スパゲッティ", "ぶどう", "とうもろこし",
-  "オムライス", "おにぎり", "ハンバーガー", "アイスクリーム", "おすし",
-  "メロンパン", "クッキー", "チョコレート", "プリン", "ピザ",
-  "ケーキ", "コーヒー", "チーズ", "ラーメン",
+// ---------- 履歴 (リズムずかん) ----------
+const HISTORY_KEY = "onpu-history";
+const HISTORY_MAX = 50;
+
+function loadHistory() {
+  try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]"); }
+  catch { return []; }
+}
+function saveHistory(arr) {
+  try { localStorage.setItem(HISTORY_KEY, JSON.stringify(arr)); } catch {}
+}
+function addToHistory(word) {
+  if (!word || word === "―") return;
+  const arr = loadHistory();
+  const filtered = arr.filter(e => e.word !== word);
+  filtered.unshift({ word, t: Date.now() });
+  saveHistory(filtered.slice(0, HISTORY_MAX));
+}
+function clearHistory() { saveHistory([]); }
+
+function renderHistory() {
+  const list = document.getElementById("history-list");
+  if (!list) return;
+  const arr = loadHistory();
+  list.innerHTML = "";
+  if (arr.length === 0) {
+    list.innerHTML = '<div class="empty" style="padding:1.5rem;">まだ なにも はなしてないよ。<br>マイクで はなすと ここに ふえていくよ！</div>';
+    return;
+  }
+  arr.forEach(entry => {
+    const notes = moraToNotes(splitMora(entry.word));
+    const noteHTML = notes.map(n =>
+      `<span class="hist-note hist-${n.type}">
+         <span class="hist-sym">${n.symbol}</span>
+         <span class="hist-kana">${n.kana}</span>
+       </span>`
+    ).join("");
+    const item = document.createElement("button");
+    item.className = "history-item";
+    item.innerHTML = `
+      <span class="hist-word">${entry.word}</span>
+      <span class="hist-notes">${noteHTML || '<span class="empty" style="padding:0;">―</span>'}</span>
+    `;
+    item.addEventListener("click", () => {
+      handleRecognized(entry.word, { skipHistory: true });
+      document.getElementById("history").classList.add("hidden");
+      setTimeout(() => playNotesSequence(), 300);
+    });
+    list.appendChild(item);
+  });
+}
+
+// ---------- 8. モデル例 (ことば と そのリズム) ----------
+// 各モデルは ずかんの音符・休符を おぼえやすい代表的なことば
+const MODEL_EXAMPLES = [
+  { word: "バナナ",         teach: "4分音ぷ ×3" },
+  { word: "りんご",         teach: "4分音ぷ ×3" },
+  { word: "とまと",         teach: "4分音ぷ ×3" },
+  { word: "ぶどう",         teach: "4分音ぷ ×3" },
+  { word: "ケーキ",         teach: "2分音ぷ + 4分音ぷ" },
+  { word: "コーヒー",       teach: "2分音ぷ ×2" },
+  { word: "チーズ",         teach: "2分音ぷ + 4分音ぷ" },
+  { word: "スパゲッティ",   teach: "4分休ふ (ッ)" },
+  { word: "ラッパ",         teach: "4分休ふ" },
+  { word: "メーーロン",     teach: "付点2分音ぷ" },
+  { word: "ケーーーキ",     teach: "全音ぷ" },
+  { word: "ハンバーガー",   teach: "ながいリズム" },
+  { word: "アイスクリーム", teach: "ながいリズム" },
+  { word: "おにぎり",       teach: "4分音ぷ ×4" },
+  { word: "おすし",         teach: "4分音ぷ ×3" },
 ];
 
 // ---------- 9. ずかん (音符・休符・記号の一覧) ----------
 const ZUKAN_SECTIONS = [
   { title: "音ぷ", items: [
-    { sym: "𝅝",  name: "全音ぷ",       desc: "4はく" },
-    { sym: "𝅗𝅥.", name: "付点2分音ぷ", desc: "3はく" },
-    { sym: "𝅗𝅥",  name: "2分音ぷ",     desc: "2はく" },
+    { sym: "𝅝",  name: "全音ぷ",       desc: "4はく",    example: "ケーーーキ" },
+    { sym: "𝅗𝅥.", name: "付点2分音ぷ", desc: "3はく",    example: "メーーロン" },
+    { sym: "𝅗𝅥",  name: "2分音ぷ",     desc: "2はく",    example: "ケーキ" },
     { sym: "♩.", name: "付点4分音ぷ", desc: "1.5はく" },
-    { sym: "♩",  name: "4分音ぷ",     desc: "1はく" },
+    { sym: "♩",  name: "4分音ぷ",     desc: "1はく",    example: "バナナ" },
     { sym: "♪.", name: "付点8分音ぷ", desc: "0.75はく" },
     { sym: "♪",  name: "8分音ぷ",     desc: "0.5はく" },
     { sym: "𝅘𝅥𝅯",  name: "16分音ぷ",    desc: "0.25はく" },
@@ -401,7 +493,7 @@ const ZUKAN_SECTIONS = [
   { title: "休ふ", items: [
     { sym: "𝄻", name: "全休ふ",  desc: "4はく やすむ" },
     { sym: "𝄼", name: "2分休ふ", desc: "2はく やすむ" },
-    { sym: "𝄽", name: "4分休ふ", desc: "1はく やすむ" },
+    { sym: "𝄽", name: "4分休ふ", desc: "1はく やすむ", example: "スパゲッティ" },
     { sym: "𝄾", name: "8分休ふ", desc: "0.5はく やすむ" },
   ]},
   { title: "音部記号", items: [
@@ -454,7 +546,13 @@ function zukanCardHTML(it, italic) {
   } else {
     symHTML = `<span class="zukan-sym${italic ? " italic" : ""}">${it.sym}</span>`;
   }
-  return `${symHTML}<span class="zukan-name">${it.name}</span>${it.desc ? `<span class="zukan-desc">${it.desc}</span>` : ""}`;
+  let exampleHTML = "";
+  if (it.example) {
+    const notes = moraToNotes(splitMora(it.example));
+    const symbols = notes.map(n => n.symbol).join(" ");
+    exampleHTML = `<span class="zukan-example">「${it.example}」<br><span class="zukan-example-rhythm">${symbols}</span></span>`;
+  }
+  return `${symHTML}<span class="zukan-name">${it.name}</span>${it.desc ? `<span class="zukan-desc">${it.desc}</span>` : ""}${exampleHTML}`;
 }
 
 function buildZukan() {
@@ -475,6 +573,11 @@ function buildZukan() {
       card.innerHTML = zukanCardHTML(it, sec.italic);
       card.addEventListener("click", () => {
         speak(it.name + (it.desc ? "。" + it.desc : ""));
+        if (it.example) {
+          handleRecognized(it.example, { skipHistory: true });
+          // 譜面が見えるよう ずかんを 自動でとじる
+          setTimeout(() => document.getElementById("zukan").classList.add("hidden"), 700);
+        }
       });
       grid.appendChild(card);
     });
@@ -519,12 +622,19 @@ function init() {
     }
   });
 
-  // プリセット
+  // モデル例 (ことば + リズム プレビュー)
   const pb = document.getElementById("preset-buttons");
-  PRESETS.forEach(w => {
+  MODEL_EXAMPLES.forEach(ex => {
+    const notes = moraToNotes(splitMora(ex.word));
+    const rhythm = notes.map(n => n.symbol).join(" ");
     const b = document.createElement("button");
-    b.textContent = w;
-    b.addEventListener("click", () => handleRecognized(w));
+    b.className = "example-card";
+    b.innerHTML = `
+      <span class="example-word">${ex.word}</span>
+      <span class="example-rhythm">${rhythm}</span>
+      <span class="example-teach">${ex.teach}</span>
+    `;
+    b.addEventListener("click", () => handleRecognized(ex.word));
     pb.appendChild(b);
   });
 
@@ -554,6 +664,30 @@ function init() {
     }
   });
   buildZukan();
+
+  // リズムずかん (履歴) の開閉
+  const history = document.getElementById("history");
+  document.getElementById("history-btn").addEventListener("click", () => {
+    renderHistory();
+    history.classList.remove("hidden");
+    speak("リズムずかん");
+  });
+  document.getElementById("history-close").addEventListener("click", () => {
+    history.classList.add("hidden");
+    speechSynthesis.cancel();
+  });
+  history.addEventListener("click", (e) => {
+    if (e.target === history) {
+      history.classList.add("hidden");
+      speechSynthesis.cancel();
+    }
+  });
+  document.getElementById("history-clear").addEventListener("click", () => {
+    if (confirm("リズムずかんを ぜんぶ けしてもいいですか？")) {
+      clearHistory();
+      renderHistory();
+    }
+  });
 
   // 速度記号エリアをタップすると名前を読み上げ
   const tempo = document.getElementById("tempo-mark");

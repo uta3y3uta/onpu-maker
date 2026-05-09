@@ -9,7 +9,10 @@
 <body>
   <header>
     <h1>🎵 おんぷメーカー 🎵</h1>
-    <button id="zukan-btn" class="zukan-btn" aria-label="ずかんを ひらく">📖</button>
+    <div class="header-btns">
+      <button id="history-btn" class="zukan-btn" aria-label="リズムずかん">📜</button>
+      <button id="zukan-btn" class="zukan-btn" aria-label="きごうずかん">📖</button>
+    </div>
   </header>
 
   <main>
@@ -52,9 +55,22 @@
   <div id="zukan" class="zukan-modal hidden" aria-hidden="true">
     <div class="zukan-box" role="dialog" aria-label="おんがくの きごう ずかん">
       <button id="zukan-close" class="zukan-close" aria-label="とじる">✕</button>
-      <h2>📖 おんがくの きごう ずかん</h2>
-      <p class="zukan-hint">タップすると よみあげるよ</p>
+      <h2>📖 きごう ずかん</h2>
+      <p class="zukan-hint">タップで よみあげ。お手本ことばが ある記号は 譜面に セットされるよ</p>
       <div id="zukan-content"></div>
+    </div>
+  </div>
+
+  <!-- リズムずかん (はなした ことばの 履歴) モーダル -->
+  <div id="history" class="zukan-modal hidden" aria-hidden="true">
+    <div class="zukan-box" role="dialog" aria-label="リズムずかん">
+      <button id="history-close" class="zukan-close" aria-label="とじる">✕</button>
+      <h2>📜 リズム ずかん</h2>
+      <p class="zukan-hint">きみが はなした ことばと そのリズム。タップすると もういちど ならせるよ</p>
+      <div id="history-list"></div>
+      <div class="history-actions">
+        <button id="history-clear" class="history-clear-btn">ぜんぶ けす</button>
+      </div>
     </div>
   </div>
 
