@@ -9,6 +9,7 @@
 <body>
   <header>
     <h1>🎵 おんぷメーカー 🎵</h1>
+    <button id="zukan-btn" class="zukan-btn" aria-label="ずかんを ひらく">📖</button>
   </header>
 
   <main>
@@ -19,7 +20,7 @@
           <span>🐢</span>
           <input id="bpm-slider" type="range" min="50" max="200" value="100" aria-label="はやさ" />
           <span>🐇</span>
-          <strong id="bpm-label">100</strong>
+          <span class="tempo-mark" id="tempo-mark" aria-label="速度記号">♩=<strong id="bpm-label">100</strong></span>
         </div>
       </div>
       <div class="huge-row">
@@ -46,6 +47,16 @@
       </div>
     </section>
   </main>
+
+  <!-- ずかん (音楽記号 図鑑) モーダル -->
+  <div id="zukan" class="zukan-modal hidden" aria-hidden="true">
+    <div class="zukan-box" role="dialog" aria-label="おんがくの きごう ずかん">
+      <button id="zukan-close" class="zukan-close" aria-label="とじる">✕</button>
+      <h2>📖 おんがくの きごう ずかん</h2>
+      <p class="zukan-hint">タップすると よみあげるよ</p>
+      <div id="zukan-content"></div>
+    </div>
+  </div>
 
   <script src="app.js"></script>
 </body>

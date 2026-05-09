@@ -207,34 +207,98 @@ function splitMora(text) {
   return moras;
 }
 
+// 音符・休符の定義（記号・名前・拍数）
+const NOTE_INFO = {
+  whole:        { symbol: "𝅝",   name: "全音ぷ",       beats: 4 },
+  "dotted-half":{ symbol: "𝅗𝅥.",  name: "付点2分音ぷ",  beats: 3 },
+  half:         { symbol: "𝅗𝅥",   name: "2分音ぷ",      beats: 2 },
+  quarter:      { symbol: "♩",   name: "4分音ぷ",      beats: 1 },
+};
+const REST_INFO = {
+  rest: { symbol: "𝄽", name: "4分休ふ", beats: 1 },
+};
+
 // モーラ列 → 音符列に変換 (リズムだけを表す)
-// ・各モーラ      → ♩ 四分音符 (1拍)
-// ・ ー が直後に続く → 直前と結合して 𝅗𝅥 二分音符 (2拍)
-// ・ ッ            → 𝄽 四分休符 (1拍)
+// ・各モーラ          → ♩  4分音ぷ (1拍)
+// ・モーラ + ー        → 𝅗𝅥  2分音ぷ (2拍)
+// ・モーラ + ーー      → 𝅗𝅥. 付点2分音ぷ (3拍)
+// ・モーラ + ーーー以上 → 𝅝  全音ぷ (4拍)
+// ・ ッ                → 𝄽  4分休ふ (1拍)
 function moraToNotes(moras) {
   const notes = [];
   for (let i = 0; i < moras.length; i++) {
     const m = moras[i];
-    if (m === "ー") continue; // 直前のノートに吸収済み
+    if (m === "ー") continue;
     if (m === "ッ" || m === "っ") {
-      notes.push({ kana: m, symbol: "𝄽", beats: 1, type: "rest" });
+      const r = REST_INFO.rest;
+      notes.push({ kana: m, symbol: r.symbol, name: r.name, beats: r.beats, type: "rest" });
       continue;
     }
-    if (moras[i + 1] === "ー") {
-      notes.push({ kana: m + "ー", symbol: "𝅗𝅥", beats: 2, type: "half" });
-    } else {
-      notes.push({ kana: m, symbol: "♩", beats: 1, type: "quarter" });
-    }
+    let extra = 0;
+    while (moras[i + 1 + extra] === "ー") extra++;
+    let key = "quarter";
+    if (extra === 1) key = "half";
+    else if (extra === 2) key = "dotted-half";
+    else if (extra >= 3) key = "whole";
+    const info = NOTE_INFO[key];
+    notes.push({
+      kana: m + "ー".repeat(extra),
+      symbol: info.symbol,
+      name: info.name,
+      beats: info.beats,
+      type: key,
+    });
+    i += extra;
   }
   return notes;
+}
+
+// 音声合成 (記号の名前を よみあげる)
+function speak(text) {
+  if (!window.speechSynthesis) return;
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = "ja-JP";
+  u.rate = 1.0;
+  u.pitch = 1.15;
+  speechSynthesis.speak(u);
+}
+
+// 一時的なツールチップ
+function showNoteTooltip(parent, text) {
+  parent.querySelectorAll(".note-tooltip").forEach(t => t.remove());
+  const t = document.createElement("div");
+  t.className = "note-tooltip";
+  t.textContent = text;
+  parent.appendChild(t);
+  setTimeout(() => t.remove(), 2200);
 }
 
 // ---------- 6. 音符表示 ----------
 function renderNotes() {
   const staff = document.getElementById("staff");
   staff.innerHTML = "";
+
+  // ト音記号 + 4/4拍子記号 を常に表示 (タップで名前を読み上げ)
+  const prefix = document.createElement("div");
+  prefix.className = "staff-prefix";
+  prefix.innerHTML = `
+    <button class="clef" data-name="ト音記号" aria-label="ト音記号">𝄞</button>
+    <button class="time-sig" data-name="4分の4拍子" aria-label="4分の4拍子"><span>4</span><span>4</span></button>
+  `;
+  prefix.querySelectorAll("[data-name]").forEach(el => {
+    el.addEventListener("click", () => {
+      showNoteTooltip(el, el.dataset.name);
+      speak(el.dataset.name);
+    });
+  });
+  staff.appendChild(prefix);
+
   if (state.notes.length === 0) {
-    staff.innerHTML = '<div class="empty">ことばを はなすと、ここに おんぷが でます</div>';
+    const empty = document.createElement("div");
+    empty.className = "empty";
+    empty.textContent = "ことばを はなすと ここに おんぷが でます";
+    staff.appendChild(empty);
     return;
   }
   state.notes.forEach((n, i) => {
@@ -242,6 +306,14 @@ function renderNotes() {
     d.className = `note note-${n.type}`;
     d.dataset.idx = i;
     d.innerHTML = `<div class="symbol">${n.symbol}</div><div class="kana">${n.kana}</div>`;
+    d.addEventListener("click", () => {
+      showNoteTooltip(d, n.name);
+      speak(n.name);
+      ensureAudio();
+      if (n.type !== "rest") {
+        playClick(state.audioCtx.currentTime + 0.05, n.beats, 60 / state.bpm);
+      }
+    });
     staff.appendChild(d);
   });
 }
@@ -311,9 +383,107 @@ const PRESETS = [
   "バナナ", "りんご", "スパゲッティ", "ぶどう", "とうもろこし",
   "オムライス", "おにぎり", "ハンバーガー", "アイスクリーム", "おすし",
   "メロンパン", "クッキー", "チョコレート", "プリン", "ピザ",
+  "ケーキ", "コーヒー", "チーズ", "ラーメン",
 ];
 
-// ---------- 9. UI 配線 ----------
+// ---------- 9. ずかん (音符・休符・記号の一覧) ----------
+const ZUKAN_SECTIONS = [
+  { title: "音ぷ", items: [
+    { sym: "𝅝",  name: "全音ぷ",       desc: "4はく" },
+    { sym: "𝅗𝅥.", name: "付点2分音ぷ", desc: "3はく" },
+    { sym: "𝅗𝅥",  name: "2分音ぷ",     desc: "2はく" },
+    { sym: "♩.", name: "付点4分音ぷ", desc: "1.5はく" },
+    { sym: "♩",  name: "4分音ぷ",     desc: "1はく" },
+    { sym: "♪.", name: "付点8分音ぷ", desc: "0.75はく" },
+    { sym: "♪",  name: "8分音ぷ",     desc: "0.5はく" },
+    { sym: "𝅘𝅥𝅯",  name: "16分音ぷ",    desc: "0.25はく" },
+  ]},
+  { title: "休ふ", items: [
+    { sym: "𝄻", name: "全休ふ",  desc: "4はく やすむ" },
+    { sym: "𝄼", name: "2分休ふ", desc: "2はく やすむ" },
+    { sym: "𝄽", name: "4分休ふ", desc: "1はく やすむ" },
+    { sym: "𝄾", name: "8分休ふ", desc: "0.5はく やすむ" },
+  ]},
+  { title: "音部記号", items: [
+    { sym: "𝄞", name: "ト音記号" },
+    { sym: "𝄢", name: "ヘ音記号" },
+  ]},
+  { title: "変化記号", items: [
+    { sym: "♯", name: "シャープ", desc: "半音 上げる" },
+    { sym: "♭", name: "フラット", desc: "半音 下げる" },
+    { sym: "♮", name: "ナチュラル", desc: "もとの たかさ" },
+  ]},
+  { title: "強弱記号", italic: true, items: [
+    { sym: "p",  name: "ピアノ",          desc: "弱く" },
+    { sym: "mp", name: "メッゾ・ピアノ",   desc: "すこし弱く" },
+    { sym: "mf", name: "メッゾ・フォルテ", desc: "すこし強く" },
+    { sym: "f",  name: "フォルテ",        desc: "強く" },
+  ]},
+  { title: "強弱の変化", items: [
+    { svg: "cresc", name: "クレシェンド", desc: "だんだん強く" },
+    { svg: "decresc", name: "デクレシェンド", desc: "だんだん弱く" },
+  ]},
+  { title: "えんそう記号", items: [
+    { sym: ">", name: "アクセント",   desc: "音を めだたせて" },
+    { sym: "・", name: "スタッカート", desc: "音を 短く きる" },
+    { sym: "V", name: "ブレス",       desc: "いきつぎ" },
+    { svg: "tie",   name: "タイ",     desc: "おなじ高さの音をつなぐ" },
+    { svg: "slur",  name: "スラー",   desc: "なめらかに" },
+  ]},
+  { title: "拍子記号", items: [
+    { stack: ["2","4"], name: "4分の2拍子" },
+    { stack: ["3","4"], name: "4分の3拍子" },
+    { stack: ["4","4"], name: "4分の4拍子" },
+    { stack: ["6","8"], name: "8分の6拍子" },
+  ]},
+  { title: "速度記号", items: [
+    { sym: "♩=88", name: "速度記号", desc: "1分間に 4分音ぷが はいる かず" },
+  ]},
+];
+
+function zukanCardHTML(it, italic) {
+  let symHTML = "";
+  if (it.svg === "cresc") {
+    symHTML = `<svg class="zukan-svg" viewBox="0 0 60 20"><line x1="2" y1="10" x2="58" y2="2" stroke="#1a237e" stroke-width="2"/><line x1="2" y1="10" x2="58" y2="18" stroke="#1a237e" stroke-width="2"/></svg>`;
+  } else if (it.svg === "decresc") {
+    symHTML = `<svg class="zukan-svg" viewBox="0 0 60 20"><line x1="2" y1="2" x2="58" y2="10" stroke="#1a237e" stroke-width="2"/><line x1="2" y1="18" x2="58" y2="10" stroke="#1a237e" stroke-width="2"/></svg>`;
+  } else if (it.svg === "tie" || it.svg === "slur") {
+    symHTML = `<svg class="zukan-svg" viewBox="0 0 60 20"><path d="M5 18 Q 30 2 55 18" fill="none" stroke="#1a237e" stroke-width="2"/></svg>`;
+  } else if (it.stack) {
+    symHTML = `<span class="zukan-stack"><span>${it.stack[0]}</span><span>${it.stack[1]}</span></span>`;
+  } else {
+    symHTML = `<span class="zukan-sym${italic ? " italic" : ""}">${it.sym}</span>`;
+  }
+  return `${symHTML}<span class="zukan-name">${it.name}</span>${it.desc ? `<span class="zukan-desc">${it.desc}</span>` : ""}`;
+}
+
+function buildZukan() {
+  const container = document.getElementById("zukan-content");
+  if (!container) return;
+  container.innerHTML = "";
+  ZUKAN_SECTIONS.forEach(sec => {
+    const s = document.createElement("section");
+    s.className = "zukan-section";
+    const h = document.createElement("h3");
+    h.textContent = sec.title;
+    s.appendChild(h);
+    const grid = document.createElement("div");
+    grid.className = "zukan-grid";
+    sec.items.forEach(it => {
+      const card = document.createElement("button");
+      card.className = "zukan-card";
+      card.innerHTML = zukanCardHTML(it, sec.italic);
+      card.addEventListener("click", () => {
+        speak(it.name + (it.desc ? "。" + it.desc : ""));
+      });
+      grid.appendChild(card);
+    });
+    s.appendChild(grid);
+    container.appendChild(s);
+  });
+}
+
+// ---------- 10. UI 配線 ----------
 function init() {
   // パターン選択
   const sel = document.getElementById("pattern-select");
@@ -366,6 +536,28 @@ function init() {
     document.getElementById("recognized-text").textContent = "―";
     renderNotes();
   });
+
+  // ずかん (音楽記号 図鑑) の開閉
+  const zukan = document.getElementById("zukan");
+  document.getElementById("zukan-btn").addEventListener("click", () => {
+    zukan.classList.remove("hidden");
+    speak("おんがくの きごう ずかん");
+  });
+  document.getElementById("zukan-close").addEventListener("click", () => {
+    zukan.classList.add("hidden");
+    speechSynthesis.cancel();
+  });
+  zukan.addEventListener("click", (e) => {
+    if (e.target === zukan) {
+      zukan.classList.add("hidden");
+      speechSynthesis.cancel();
+    }
+  });
+  buildZukan();
+
+  // 速度記号エリアをタップすると名前を読み上げ
+  const tempo = document.getElementById("tempo-mark");
+  if (tempo) tempo.addEventListener("click", () => speak("速度記号"));
 
   setupRecognition();
   renderNotes();

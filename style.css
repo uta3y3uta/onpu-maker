@@ -27,7 +27,24 @@ body {
 header {
   text-align: center;
   padding: 1rem 1rem 0.25rem;
+  position: relative;
 }
+
+.zukan-btn {
+  position: absolute;
+  top: 0.8rem;
+  right: 1rem;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  border: 3px solid #ffb74d;
+  background: #fff3e0;
+  font-size: 1.8rem;
+  cursor: pointer;
+  box-shadow: 0 4px 0 #e65100, 0 6px 12px rgba(0,0,0,0.1);
+  transition: transform 0.05s;
+}
+.zukan-btn:active { transform: translateY(2px); box-shadow: 0 2px 0 #e65100; }
 
 h1 {
   margin: 0;
@@ -90,6 +107,21 @@ main {
   text-align: right;
   color: var(--accent-dark);
 }
+
+.tempo-mark {
+  background: #fffde7;
+  border: 2px solid #ffd54f;
+  border-radius: 10px;
+  padding: 0.2rem 0.6rem;
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: #e65100;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+.tempo-mark:hover { background: #fff8c5; }
 
 /* === 3つの主要ボタン (3倍サイズ) === */
 .huge-row {
@@ -188,7 +220,7 @@ main {
 .staff {
   position: relative;
   width: 100%;
-  min-height: 150px;
+  min-height: 160px;
   background:
     repeating-linear-gradient(
       to bottom,
@@ -210,7 +242,45 @@ main {
   background-color: #fafafa;
 }
 
+/* スタッフ先頭 = ト音記号 + 拍子記号 */
+.staff-prefix {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.4rem;
+  margin-right: 0.4rem;
+  height: 110px;
+}
+.staff-prefix .clef,
+.staff-prefix .time-sig {
+  background: transparent;
+  border: 2px dashed transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  padding: 0.1rem 0.3rem;
+  transition: background 0.1s, border 0.1s;
+  font-family: inherit;
+  color: #1a237e;
+}
+.staff-prefix .clef:hover,
+.staff-prefix .time-sig:hover {
+  background: #fff8c5;
+  border-color: #ffb74d;
+}
+.staff-prefix .clef {
+  font-size: 4rem;
+  line-height: 0.9;
+}
+.staff-prefix .time-sig {
+  display: inline-flex;
+  flex-direction: column;
+  font-weight: 900;
+  font-size: 1.5rem;
+  line-height: 0.95;
+  align-items: center;
+}
+
 .note {
+  position: relative;
   width: 60px;
   height: 110px;
   display: flex;
@@ -218,7 +288,10 @@ main {
   align-items: center;
   justify-content: flex-end;
   transition: transform 0.15s;
+  cursor: pointer;
 }
+.note:hover { transform: translateY(-4px); }
+.note:hover .symbol { color: var(--primary-dark); }
 .note .symbol {
   font-size: 2.6rem;
   line-height: 1;
@@ -236,10 +309,167 @@ main {
 .note.active { transform: translateY(-10px) scale(1.15); }
 .note.active .symbol { color: var(--primary-dark); }
 
-.note.note-half { width: 120px; }
-.note.note-half .symbol { font-size: 3rem; }
+.note.note-half          { width: 120px; }
+.note.note-dotted-half   { width: 160px; }
+.note.note-whole         { width: 200px; }
+.note.note-half .symbol,
+.note.note-dotted-half .symbol,
+.note.note-whole .symbol { font-size: 3rem; }
 .note.note-rest .kana { background: #ffccbc; }
 .note.note-rest .symbol { color: #6d4c41; }
+
+/* タップしたときのツールチップ (音符の名前) */
+.note-tooltip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--primary);
+  color: #fff;
+  padding: 0.35rem 0.7rem;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  font-weight: bold;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  animation: floatUp 2.2s forwards;
+  z-index: 5;
+}
+.note-tooltip::after {
+  content: "";
+  position: absolute;
+  top: 100%; left: 50%;
+  margin-left: -6px;
+  border: 6px solid transparent;
+  border-top-color: var(--primary);
+}
+@keyframes floatUp {
+  0%   { opacity: 0; transform: translateX(-50%) translateY(8px); }
+  15%  { opacity: 1; transform: translateX(-50%) translateY(0); }
+  80%  { opacity: 1; transform: translateX(-50%) translateY(-2px); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+}
+
+/* === ずかん モーダル === */
+.zukan-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 100;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 2vh 1rem;
+  overflow-y: auto;
+}
+.zukan-modal.hidden { display: none; }
+
+.zukan-box {
+  position: relative;
+  background: #fffdf6;
+  border-radius: 24px;
+  padding: 1.5rem 1.25rem 2rem;
+  max-width: 760px;
+  width: 100%;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+  margin: auto 0;
+}
+
+.zukan-box h2 {
+  margin: 0 0 0.25rem;
+  text-align: center;
+  color: var(--primary-dark);
+  font-size: 1.5rem;
+}
+.zukan-hint {
+  margin: 0 0 1rem;
+  text-align: center;
+  color: #8d6e63;
+  font-size: 0.95rem;
+}
+
+.zukan-close {
+  position: absolute;
+  top: 0.8rem;
+  right: 0.8rem;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 3px solid #bdbdbd;
+  background: #fff;
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+
+.zukan-section {
+  margin-bottom: 1.2rem;
+}
+.zukan-section h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1.1rem;
+  color: var(--accent-dark);
+  border-left: 6px solid var(--accent);
+  padding-left: 0.5rem;
+}
+
+.zukan-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 0.5rem;
+}
+
+.zukan-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0.7rem 0.4rem;
+  background: #fff8e1;
+  border: 3px solid #ffd54f;
+  border-radius: 14px;
+  cursor: pointer;
+  font-family: inherit;
+  min-height: 110px;
+  gap: 0.2rem;
+}
+.zukan-card:hover { background: #fff3c4; transform: translateY(-2px); }
+.zukan-card:active { transform: translateY(1px); }
+
+.zukan-sym {
+  font-size: 2.4rem;
+  line-height: 1;
+  color: #1a237e;
+}
+.zukan-sym.italic {
+  font-style: italic;
+  font-family: "Times New Roman", "Yu Mincho", serif;
+  font-weight: bold;
+}
+.zukan-svg {
+  width: 70px;
+  height: 24px;
+}
+.zukan-stack {
+  display: inline-flex;
+  flex-direction: column;
+  font-weight: 900;
+  font-size: 1.6rem;
+  line-height: 0.95;
+  color: #1a237e;
+  align-items: center;
+}
+.zukan-name {
+  font-size: 0.95rem;
+  font-weight: bold;
+  text-align: center;
+  color: var(--text);
+}
+.zukan-desc {
+  font-size: 0.8rem;
+  color: #6d4c41;
+  text-align: center;
+}
 
 .empty {
   color: #bdbdbd;
