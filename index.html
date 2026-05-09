@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>おんぷメーカー｜たべものをおんぷにしよう！</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>🎵 おんぷメーカー 🎵</h1>
+    <p class="subtitle">たべものを はなして、おんぷにしてみよう！</p>
+  </header>
+
+  <main>
+    <section class="panel rhythm-panel">
+      <h2>① リズムボックス</h2>
+      <div class="rhythm-controls">
+        <label class="control">
+          <span>パターン</span>
+          <select id="pattern-select"></select>
+        </label>
+        <label class="control speed-control">
+          <span>はやさ <strong id="bpm-label">100</strong> BPM</span>
+          <input id="bpm-slider" type="range" min="50" max="200" value="100" />
+        </label>
+        <button id="rhythm-toggle" class="big-btn">▶ リズム スタート</button>
+      </div>
+      <div class="beat-indicator" id="beat-indicator">
+        <span></span><span></span><span></span><span></span>
+      </div>
+    </section>
+
+    <section class="panel voice-panel">
+      <h2>② たべものを はなしてね</h2>
+      <div class="voice-controls">
+        <button id="mic-btn" class="big-btn mic">🎤 おしてはなす</button>
+        <div class="recognized">
+          <span class="label">きこえたことば：</span>
+          <span id="recognized-text">―</span>
+        </div>
+      </div>
+      <div class="presets">
+        <p>または えらんでね：</p>
+        <div class="preset-buttons" id="preset-buttons"></div>
+      </div>
+    </section>
+
+    <section class="panel notes-panel">
+      <h2>③ おんぷ</h2>
+      <div class="staff" id="staff"></div>
+      <div class="notes-actions">
+        <button id="play-notes-btn" class="big-btn play">▶ おんぷを ならす</button>
+        <button id="clear-btn" class="small-btn">クリア</button>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <small>© Onpu Maker — Web Speech API と Web Audio API を つかっています。Chromeで うごきます。</small>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
