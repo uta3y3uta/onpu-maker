@@ -150,14 +150,14 @@ function startRhythm() {
   state.rhythmPlaying = true;
   state.rhythmStep = 0;
   scheduleNextStep();
-  document.getElementById("rhythm-toggle").textContent = "■ リズム ストップ";
+  document.getElementById("rhythm-toggle").textContent = "■";
   document.getElementById("rhythm-toggle").classList.add("playing");
 }
 function stopRhythm() {
   state.rhythmPlaying = false;
   if (state.rhythmTimerId) clearTimeout(state.rhythmTimerId);
   state.rhythmTimerId = null;
-  document.getElementById("rhythm-toggle").textContent = "▶ リズム スタート";
+  document.getElementById("rhythm-toggle").textContent = "▶";
   document.getElementById("rhythm-toggle").classList.remove("playing");
   document.querySelectorAll("#beat-indicator span").forEach(s => s.classList.remove("active"));
 }
@@ -291,11 +291,11 @@ function setupRecognition() {
   };
   recognition.onerror = (ev) => {
     console.warn("recognition error", ev.error);
-    document.getElementById("recognized-text").textContent = `(${ev.error})`;
+    document.getElementById("recognized-text").textContent = "❌";
   };
   recognition.onend = () => {
     document.getElementById("mic-btn").classList.remove("listening");
-    document.getElementById("mic-btn").textContent = "🎤 おしてはなす";
+    document.getElementById("mic-btn").textContent = "🎤";
   };
 }
 
@@ -344,7 +344,6 @@ function init() {
     try {
       recognition.start();
       document.getElementById("mic-btn").classList.add("listening");
-      document.getElementById("mic-btn").textContent = "🎤 きいてるよ…";
     } catch (e) {
       console.warn(e);
     }

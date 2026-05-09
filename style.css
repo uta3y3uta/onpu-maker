@@ -6,9 +6,11 @@
   --accent-dark: #0288d1;
   --green: #66bb6a;
   --green-dark: #43a047;
+  --pink: #ec407a;
+  --pink-dark: #c2185b;
   --text: #3e2723;
   --panel: #ffffff;
-  --shadow: 0 4px 12px rgba(0,0,0,0.08);
+  --shadow: 0 4px 14px rgba(0,0,0,0.10);
 }
 
 * { box-sizing: border-box; }
@@ -24,145 +26,169 @@ body {
 
 header {
   text-align: center;
-  padding: 1.5rem 1rem 0.5rem;
+  padding: 1rem 1rem 0.25rem;
 }
 
 h1 {
   margin: 0;
-  font-size: clamp(1.8rem, 5vw, 2.6rem);
+  font-size: clamp(1.6rem, 4.5vw, 2.4rem);
   color: var(--primary-dark);
   text-shadow: 2px 2px 0 #fff, 4px 4px 0 rgba(0,0,0,0.05);
-}
-
-.subtitle {
-  margin: 0.25rem 0 0;
-  font-size: 1.05rem;
-  color: #6d4c41;
 }
 
 main {
   max-width: 880px;
   margin: 0 auto;
-  padding: 1rem;
+  padding: 0.75rem;
   display: grid;
   gap: 1rem;
 }
 
 .panel {
   background: var(--panel);
-  border-radius: 18px;
-  padding: 1rem 1.25rem;
+  border-radius: 24px;
+  padding: 1rem;
   box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
 }
 
-.panel h2 {
-  margin: 0 0 0.75rem;
-  font-size: 1.2rem;
-  color: var(--primary-dark);
-}
-
-.rhythm-controls,
-.voice-controls {
+.row {
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem;
   align-items: center;
+  justify-content: center;
+  width: 100%;
 }
 
-.control {
-  display: flex;
-  flex-direction: column;
-  font-size: 0.9rem;
-  gap: 0.25rem;
-}
-.control select,
-.control input[type="range"] {
+#pattern-select {
   font-size: 1rem;
-  padding: 0.35rem;
-  border-radius: 10px;
-  border: 2px solid #ffcc80;
+  padding: 0.5rem 0.8rem;
+  border-radius: 14px;
+  border: 3px solid #ffcc80;
   background: #fffdf6;
-}
-.speed-control { flex: 1; min-width: 200px; }
-.speed-control input[type="range"] { width: 100%; padding: 0; }
-
-.big-btn {
-  font-size: 1.1rem;
-  padding: 0.85rem 1.4rem;
-  border-radius: 999px;
-  border: none;
-  background: var(--accent);
-  color: white;
-  font-weight: bold;
+  font-family: inherit;
   cursor: pointer;
-  box-shadow: 0 3px 0 var(--accent-dark);
-  transition: transform 0.05s;
 }
-.big-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--accent-dark); }
-.big-btn.playing { background: var(--primary); box-shadow: 0 3px 0 var(--primary-dark); }
-.big-btn.mic { background: var(--primary); box-shadow: 0 3px 0 var(--primary-dark); }
-.big-btn.mic.listening { background: #ef5350; animation: pulse 1s infinite; }
-.big-btn.play { background: var(--green); box-shadow: 0 3px 0 var(--green-dark); }
+
+.speed {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex: 1;
+  min-width: 220px;
+}
+.speed input[type="range"] {
+  flex: 1;
+  accent-color: var(--accent);
+}
+.speed strong {
+  min-width: 2.3em;
+  text-align: right;
+  color: var(--accent-dark);
+}
+
+/* === 3つの主要ボタン (3倍サイズ) === */
+.huge-row {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  justify-content: center;
+}
+
+.huge-btn {
+  width: 170px;
+  height: 170px;
+  border-radius: 50%;
+  border: none;
+  font-size: 5rem;
+  line-height: 1;
+  font-weight: bold;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.07s;
+  box-shadow: 0 8px 0 rgba(0,0,0,0.18), 0 12px 24px rgba(0,0,0,0.15);
+}
+.huge-btn:active {
+  transform: translateY(4px);
+  box-shadow: 0 4px 0 rgba(0,0,0,0.18), 0 6px 12px rgba(0,0,0,0.15);
+}
+
+.huge-btn.rhythm        { background: var(--accent); }
+.huge-btn.rhythm.playing{ background: var(--primary); }
+.huge-btn.mic           { background: var(--pink); }
+.huge-btn.mic.listening { background: #ef5350; animation: pulse 1s infinite; }
+.huge-btn.play          { background: var(--green); }
 
 @keyframes pulse {
   0%,100% { transform: scale(1); }
-  50% { transform: scale(1.05); }
+  50%     { transform: scale(1.08); }
 }
 
 .small-btn {
-  font-size: 0.9rem;
-  padding: 0.5rem 1rem;
-  border-radius: 999px;
-  border: 2px solid #bdbdbd;
+  font-size: 1.6rem;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 3px solid #bdbdbd;
   background: #fff;
   cursor: pointer;
 }
 
 .beat-indicator {
-  margin-top: 0.75rem;
   display: flex;
-  gap: 0.5rem;
+  gap: 0.7rem;
   justify-content: center;
 }
 .beat-indicator span {
-  width: 18px; height: 18px; border-radius: 50%;
-  background: #ffe0b2; transition: background 0.05s, transform 0.05s;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: #ffe0b2;
+  transition: background 0.05s, transform 0.05s;
 }
 .beat-indicator span.active {
   background: var(--primary);
-  transform: scale(1.4);
+  transform: scale(1.5);
 }
 
 .recognized {
   background: #f3e5f5;
-  border-radius: 12px;
-  padding: 0.6rem 1rem;
-  flex: 1;
-  min-width: 200px;
-  font-size: 1.1rem;
+  border-radius: 16px;
+  padding: 0.6rem 1.2rem;
+  font-size: 1.6rem;
+  font-weight: bold;
+  color: #6a1b9a;
+  min-width: 60%;
+  text-align: center;
 }
-.recognized .label { color: #6a1b9a; font-size: 0.9rem; margin-right: 0.5rem; }
 
-.presets { margin-top: 0.75rem; }
-.presets p { margin: 0.5rem 0 0.4rem; font-size: 0.95rem; color: #6d4c41; }
 .preset-buttons {
   display: flex;
   flex-wrap: wrap;
   gap: 0.4rem;
+  justify-content: center;
 }
 .preset-buttons button {
   font-size: 1rem;
   padding: 0.5rem 0.9rem;
   border-radius: 999px;
-  border: 2px solid #ffb74d;
+  border: 3px solid #ffb74d;
   background: #fff3e0;
   cursor: pointer;
+  font-family: inherit;
 }
 .preset-buttons button:hover { background: #ffe0b2; }
 
+/* === 五線/音符 === */
 .staff {
   position: relative;
-  min-height: 140px;
+  width: 100%;
+  min-height: 150px;
   background:
     repeating-linear-gradient(
       to bottom,
@@ -171,69 +197,54 @@ main {
       #b0bec5 22px,
       #b0bec5 23px
     );
-  background-position: 0 25px;
+  background-position: 0 30px;
   background-size: 100% 115px;
   background-repeat: no-repeat;
-  border-radius: 12px;
+  border-radius: 16px;
   padding: 1rem;
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
   align-items: flex-end;
   overflow-x: auto;
+  background-color: #fafafa;
 }
 
 .note {
-  position: relative;
-  width: 56px;
-  height: 100px;
+  width: 60px;
+  height: 110px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-end;
-  font-size: 1.4rem;
   transition: transform 0.15s;
 }
 .note .symbol {
-  font-size: 2.4rem;
+  font-size: 2.6rem;
   line-height: 1;
   color: #1a237e;
   text-shadow: 1px 1px 0 #fff;
 }
 .note .kana {
-  margin-top: 0.2rem;
+  margin-top: 0.25rem;
   background: #fff59d;
-  padding: 0.1rem 0.4rem;
-  border-radius: 8px;
+  padding: 0.15rem 0.5rem;
+  border-radius: 10px;
   font-weight: bold;
-  font-size: 1.1rem;
+  font-size: 1.15rem;
 }
 .note.active { transform: translateY(-10px) scale(1.15); }
 .note.active .symbol { color: var(--primary-dark); }
 
-/* 二分音符は2拍ぶんの長さなので横幅を広げる */
-.note.note-half { width: 110px; }
-.note.note-half .symbol { font-size: 2.8rem; }
-
-/* 休符はカナ部分をオレンジ寄りに */
+.note.note-half { width: 120px; }
+.note.note-half .symbol { font-size: 3rem; }
 .note.note-rest .kana { background: #ffccbc; }
 .note.note-rest .symbol { color: #6d4c41; }
 
-.notes-actions {
-  margin-top: 0.75rem;
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-}
-
-footer {
-  text-align: center;
-  margin-top: 1rem;
-  color: #8d6e63;
-}
-
 .empty {
-  color: #9e9e9e;
+  color: #bdbdbd;
   padding: 1rem;
-  font-style: italic;
+  font-size: 1.2rem;
+  text-align: center;
+  width: 100%;
 }
